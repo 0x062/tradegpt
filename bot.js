@@ -47,18 +47,59 @@ const uniswapRouterABI = ['function swapExactTokensForTokens(uint256 amountIn, u
 // --- Fungsi Helper ---
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, parseInt(ms)));
 
+// =================================================================================
+// ============================= BAGIAN YANG DIPERBAIKI ============================
+// =================================================================================
 const getHeaders = () => ({
     'accept': 'application/json, text/plain, */*',
+    'accept-language': 'en-US,en;q=0.9',
     'content-type': 'application/json',
-    'Referer': 'https://0g.app.tradegpt.finance/',
+    'origin': 'https://0g.app.tradegpt.finance',
+    'referer': 'https://0g.app.tradegpt.finance/',
+    'sec-ch-ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'cross-site',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    // Kunci yang hilang ada di sini!
+    'x-api-key': 'trade-gpt-api-key-8912378912378912'
 });
 
-const getRandomPrompt = () => {
-    const prompts = ["What's the value of my portfolio?", "What can I do on TradeGPT?", "What is the price of CSYN?", "Need alpha"];
-    return prompts[Math.floor(Math.random() * prompts.length)];
-};
+async function sendChatRequest(promptText) {
+    logger.loading(`Mengirim chat: "${promptText}"`);
+    const url = 'https://trade-gpt-800267618745.herokuapp.com/ask/ask';
+    // Payload disesuaikan agar lebih mirip dengan script referensi
+    const payload = {
+        chainId: 16601,
+        user: wallet.address,
+        questions: [{
+            question: promptText,
+            answer: '',
+            baseMessage: {
+                lc: 1,
+                type: 'constructor',
+                id: ['langchain_core', 'messages', 'HumanMessage'],
+                kwargs: { content: promptText }
+            },
+        }],
+        testnetOnly: true,
+    };
+    try {
+        const response = await axios.post(url, payload, { headers: getHeaders() });
+        logger.info('Chat berhasil dikirim.');
+        return response.data;
+    } catch (error) {
+        logger.error(`Gagal mengirim chat: ${error.message}`);
+        return null;
+    }
+}
+// =================================================================================
+// =================================================================================
+// =================================================================================
 
-// --- Fungsi Inti ---
+
 async function checkWalletInfo() {
     logger.loading(`Mengecek status wallet: ${wallet.address}`);
     try {
@@ -74,24 +115,6 @@ async function checkWalletInfo() {
     }
 }
 
-async function sendChatRequest(promptText) {
-    logger.loading(`Mengirim chat: "${promptText}"`);
-    const url = 'https://trade-gpt-800267618745.herokuapp.com/ask/ask';
-    const payload = {
-        chainId: 16601,
-        user: wallet.address,
-        questions: [{ question: promptText, /* ... data lainnya */ }],
-        testnetOnly: true,
-    };
-    try {
-        const response = await axios.post(url, payload, { headers: getHeaders() });
-        logger.info('Chat berhasil dikirim.');
-        return response.data;
-    } catch (error) {
-        logger.error(`Gagal mengirim chat: ${error.message}`);
-        return null;
-    }
-}
 
 async function performSwap(amountUSDT, targetTokenSymbol) {
     const targetTokenAddress = tokens[targetTokenSymbol];
@@ -131,7 +154,10 @@ async function performSwap(amountUSDT, targetTokenSymbol) {
         await axios.post('https://trade-gpt-800267618745.herokuapp.com/log/logTransaction', {
             walletAddress: wallet.address,
             txHash: tx.hash,
-            // ... data lainnya
+            amount: amountUSDT.toString(),
+            usdValue: amountUSDT,
+            currencyIn: 'USDT',
+            currencyOut: targetTokenSymbol
         }, { headers: getHeaders() });
         logger.info('Transaksi berhasil dilaporkan ke server.');
 
@@ -148,6 +174,9 @@ async function runBot() {
     console.log('');
 
     const numActions = parseInt(NUMBER_OF_ACTIONS) || 3;
+    const minSwap = parseFloat(MIN_SWAP_AMOUNT) || 0.1;
+    const maxSwap = parseFloat(MAX_SWAP_AMOUNT) || 1.0;
+    
     logger.step(`Akan menjalankan ${numActions} siklus (Chat + Swap)...`);
 
     for (let i = 0; i < numActions; i++) {
@@ -158,7 +187,7 @@ async function runBot() {
             await delay(DELAY_SHORT_MS);
             
             // 2. Lakukan swap acak
-            const randomAmount = (Math.random() * (parseFloat(MAX_SWAP_AMOUNT) - parseFloat(MIN_SWAP_AMOUNT)) + parseFloat(MIN_SWAP_AMOUNT)).toFixed(6);
+            const randomAmount = (Math.random() * (maxSwap - minSwap) + minSwap).toFixed(6);
             const randomToken = tradeableTokens[Math.floor(Math.random() * tradeableTokens.length)];
             await performSwap(parseFloat(randomAmount), randomToken);
 
@@ -169,10 +198,14 @@ async function runBot() {
         await delay(DELAY_MEDIUM_MS);
     }
 
-    logger.step('====== Semua siklus selesai. Mengecek status akhir. ======');
-    await checkWalletInfo();
+    logger.step('====== Semua siklus selesai. ======');
     await delay(DELAY_LONG_MS);
-    logger.step('====== Bot Selesai. ======');
 }
+
+const getRandomPrompt = () => {
+    const prompts = ["What's the value of my portfolio?", "What can I do on TradeGPT?", "What is the price of CSYN?", "Need alpha"];
+    return prompts[Math.floor(Math.random() * prompts.length)];
+};
+
 
 runBot().catch(error => logger.error(`Eksekusi bot gagal total: ${error.message}`));
