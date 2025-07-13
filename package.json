@@ -1,0 +1,18 @@
+{
+  "name": "tradegpt-single-bot",
+  "version": "1.0.0",
+  "description": "Bot otomatis untuk menjalankan tugas di TradeGPT untuk satu akun.",
+  "main": "bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "author": "Kazmight (Refactored by Gemini)",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "chalk": "^5.3.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.0"
+  }
+}
