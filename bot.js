@@ -30,7 +30,7 @@ if (!PRIVATE_KEY) {
 
 // --- Variabel & Konstanta Global ---
 const networkConfig = {
-    rpc: 'https://evmrpc-testnet.0g.ai/',
+    rpc: 'https://0g-evm.maouam.nodelab.my.id/',
     explorer: 'https://chainscan-galileo.0g.ai/',
 };
 const provider = new ethers.JsonRpcProvider(networkConfig.rpc);
